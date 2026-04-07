@@ -14,6 +14,8 @@ jobs:
       matrix:
         tag:
         - fedora-latest
+        - centos-10
+        - centos-9
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,7 +25,7 @@ jobs:
         python-version: 3.x
 
     - name: Checkout sssd-test-framework repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         # Fetch the entire history of the repository and tags to determine
         # correct framework version, as it is constructed from git describe
@@ -33,7 +35,7 @@ jobs:
         path: sssd-test-framework
 
     - name: Checkout sudo-tests repository
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: RedHat-SP-Security/sudo-tests
         path: sudo-tests
@@ -52,10 +54,13 @@ jobs:
         user: root
         script: |
           #!/bin/bash
-          test -x /usr/bin/sss_ssh_knownhosts && \
-              sed -e 's/GlobalKnownHostsFile/#GlobalKnownHostsFile/' \
-                  -e 's/ProxyCommand \/usr\/bin\/sss_ssh_knownhostsproxy -p %p %h/KnownHostsCommand \/usr\/bin\/sss_ssh_knownhosts %H/' \
-                  -i /etc/ssh/ssh_config.d/04-ipa.conf
+          set -e
+          IPA_SSH=/etc/ssh/ssh_config.d/04-ipa.conf
+          if [ -x /usr/bin/sss_ssh_knownhosts ] && [ -f "$IPA_SSH" ]; then
+            sed -e 's/GlobalKnownHostsFile/#GlobalKnownHostsFile/' \
+                -e 's/ProxyCommand \/usr\/bin\/sss_ssh_knownhostsproxy -p %p %h/KnownHostsCommand \/usr\/bin\/sss_ssh_knownhosts %H/' \
+                -i "$IPA_SSH"
+          fi
 
     - name: Install system tests dependencies
       shell: bash
@@ -111,6 +116,15 @@ jobs:
           --output-polarion-testcase=$GITHUB_WORKSPACE/artifacts/testcase.xml \
           --collect-only . |& tee $GITHUB_WORKSPACE/pytest-collect.log
 
+    - name: Add extra packages needed for sudo tests on CentOS 9
+      uses: SSSD/sssd-ci-containers/actions/exec@master
+      with:
+        user: root
+        script: |
+          #!/bin/bash
+          set -e
+          dnf install -y sudo shadow-utils passwd
+
     - name: Run tests
       shell: bash
       working-directory: ./sudo-tests/pytest/
@@ -132,7 +146,7 @@ jobs:
 
     - name: Upload artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         if-no-files-found: ignore
         name: ${{ matrix.tag }}-system
