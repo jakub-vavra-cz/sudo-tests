@@ -340,8 +340,7 @@ def test_basic__user_and_group(client: Client, provider: GenericProvider):
 @pytest.mark.contains_workaround_for(gh=4483)
 @pytest.mark.topology(KnownTopology.BareAD)
 @pytest.mark.topology(KnownTopology.BareLDAP)
-# @pytest.mark.topology(KnownTopology.BareClient)
-# TODO: Implement netgroups for bare client
+@pytest.mark.topology(KnownTopology.BareClient)
 # Note: Netgroups are not supported in sudo rules on IPA
 def test_basic__single_netgroup(client: Client, provider: GenericProvider):
     """
@@ -1020,3 +1019,238 @@ def test_basic__tags_nopasswd(client: Client, provider: GenericProvider):
     assert not client.auth.sudo.run(
         u.name, command="/bin/df"
     ), f"User {u.name} was able to run 'sudo /bin/df' that should have been blocked!"
+
+
+@pytest.mark.importance("critical")
+@pytest.mark.topology(KnownTopology.BareClient)
+def test_basic__user_alias_single_user(
+    client: Client,
+    provider: GenericProvider,
+):
+    """
+    :title: Sudo rule may grant access via a User_Alias
+    :setup:
+        1. Create users "user-1" and "user-2"
+        2. Define ``User_Alias SUDO_USERS`` containing only "user-1"
+        3. Create sudorule allowing ``SUDO_USERS`` to run /bin/ls on all hosts
+        4. Enable SSSD sudo responder and start SSSD
+    :steps:
+        1. Run "sudo /bin/ls /root" as user-1
+        2. Run "sudo /bin/ls /root" as user-2
+    :expectedresults:
+        1. user-1 is allowed
+        2. user-2 is denied
+    :customerscenario: False
+    """
+    _setup_sudo(client, provider)
+    u = provider.user("user-1").add()
+    u2 = provider.user("user-2").add()
+    user_alias = client.sudoalias("SUDO_USERS", "user")
+    user_alias.add([u], order=1)
+    sudo_rule = provider.sudorule("test")
+    sudo_rule.add(user=user_alias, host="ALL", command="/bin/ls", order=10)
+    client.sssd.restart()
+
+    assert client.auth.sudo.run(
+        u.name, "Secret123", command="/bin/ls /root"
+    ), f"User {u.name} failed sudo via User_Alias"
+    assert not client.auth.sudo.run(
+        u2.name, "Secret123", command="/bin/ls /root"
+    ), f"User {u2.name} should be denied (not in SUDO_USERS)"
+
+
+@pytest.mark.importance("high")
+@pytest.mark.topology(KnownTopology.BareClient)
+def test_basic__user_alias_multiple_members(
+    client: Client,
+    provider: GenericProvider,
+):
+    """
+    :title: User_Alias may list several users
+    :setup:
+        1. Create users "user-1", "user-2", and "user-deny"
+        2. Define ``User_Alias SUDO_USERS`` with user-1 and user-2
+        3. Create sudorule for ``SUDO_USERS`` to run /bin/ls on all hosts
+        4. Enable SSSD sudo responder and start SSSD
+    :steps:
+        1. Run "sudo /bin/ls /root" as user-1 and user-2
+        2. Run "sudo /bin/ls /root" as user-deny
+    :expectedresults:
+        1. user-1 and user-2 are allowed
+        2. user-deny is denied
+    :customerscenario: False
+    """
+    _setup_sudo(client, provider)
+    u1 = provider.user("user-1").add()
+    u2 = provider.user("user-2").add()
+    u3 = provider.user("user-deny").add()
+    user_alias = client.sudoalias("SUDO_USERS", "user")
+    user_alias.add([u1, u2], order=1)
+    sudo_rule = provider.sudorule("test")
+    sudo_rule.add(user=user_alias, host="ALL", command="/bin/ls", order=10)
+    client.sssd.restart()
+
+    assert client.auth.sudo.run(
+        u1.name, "Secret123", command="/bin/ls /root"
+    ), f"User {u1.name} failed sudo (User_Alias)"
+    assert client.auth.sudo.run(
+        u2.name, "Secret123", command="/bin/ls /root"
+    ), f"User {u2.name} failed sudo (User_Alias)"
+    assert not client.auth.sudo.run(
+        u3.name,
+        "Secret123",
+        command="/bin/ls /root",
+    ), f"User {u3.name} should be denied"
+
+
+@pytest.mark.importance("high")
+@pytest.mark.topology(KnownTopology.BareClient)
+def test_basic__user_alias_with_group_member(
+    client: Client,
+    provider: GenericProvider,
+):
+    """
+    :title: User_Alias may include a POSIX group (percent-prefixed in sudoers)
+    :setup:
+        1. Create user "user-1" and group "group-1" with user-1 as member
+        2. Define ``User_Alias SUDO_SUBJECTS`` listing ``%group-1``
+        3. Create sudorule for ``SUDO_SUBJECTS`` to run /bin/ls on all hosts
+        4. Enable SSSD sudo responder and start SSSD
+    :steps:
+        1. Run "sudo /bin/ls /root" as user-1
+    :expectedresults:
+        1. user-1 is allowed via group membership in the alias
+    :customerscenario: False
+    """
+    _setup_sudo(client, provider)
+    u = provider.user("user-1").add()
+    g = provider.group("group-1").add().add_member(u)
+    user_alias = client.sudoalias("SUDO_SUBJECTS", "user")
+    user_alias.add([g], order=1)
+    sudo_rule = provider.sudorule("test")
+    sudo_rule.add(user=user_alias, host="ALL", command="/bin/ls", order=10)
+    client.sssd.restart()
+
+    assert client.auth.sudo.run(
+        u.name, "Secret123", command="/bin/ls /root"
+    ), f"User {u.name} failed sudo (User_Alias + group)"
+
+
+@pytest.mark.importance("high")
+@pytest.mark.topology(KnownTopology.BareClient)
+def test_basic__command_alias(
+    client: Client,
+    provider: GenericProvider,
+):
+    """
+    :title: Sudo rule may reference a Cmnd_Alias
+    :setup:
+        1. Create user "user-1"
+        2. Define ``Cmnd_Alias LSHELP`` as /bin/ls
+        3. Create sudorule allowing user-1 to run ``LSHELP`` on all hosts
+        4. Enable SSSD sudo responder and start SSSD
+    :steps:
+        1. Run "sudo /bin/ls /root" as user-1
+    :expectedresults:
+        1. Command allowed through Cmnd_Alias
+    :customerscenario: False
+    """
+    _setup_sudo(client, provider)
+    u = provider.user("user-1").add()
+    cmd_alias = client.sudoalias("LSHELP", "command")
+    cmd_alias.add("/bin/ls", order=1)
+    sudo_rule = provider.sudorule("test")
+    sudo_rule.add(user=u, host="ALL", command=cmd_alias, order=10)
+    client.sssd.restart()
+
+    assert client.auth.sudo.run(
+        u.name, "Secret123", command="/bin/ls /root"
+    ), f"User {u.name} failed sudo via Cmnd_Alias"
+
+
+@pytest.mark.importance("high")
+@pytest.mark.topology(KnownTopology.BareClient)
+def test_basic__host_alias(
+    client: Client,
+    provider: GenericProvider,
+):
+    """
+    :title: Sudo rule may reference a Host_Alias for sudoHost
+    :setup:
+        1. Create user "user-1"
+        2. Define ``Host_Alias TRUSTED`` with the client's short hostname
+        3. Create sudorule allowing user-1 to run /bin/ls on ``TRUSTED``
+        4. Enable SSSD sudo responder and start SSSD
+    :steps:
+        1. Run "sudo /bin/ls /root" as user-1
+    :expectedresults:
+        1. Rule matches current host via Host_Alias
+    :customerscenario: False
+    """
+    _setup_sudo(client, provider)
+    u = provider.user("user-1").add()
+    short = client.host.hostname.split(".")[0]
+    host_alias = client.sudoalias("TRUSTED", "host")
+    host_alias.add([short], order=1)
+    sudo_rule = provider.sudorule("test")
+    sudo_rule.add(user=u, host=host_alias, command="/bin/ls", order=10)
+    client.sssd.restart()
+
+    assert client.auth.sudo.run(
+        u.name, "Secret123", command="/bin/ls /root"
+    ), f"User {u.name} failed sudo via Host_Alias"
+
+
+@pytest.mark.importance("high")
+@pytest.mark.topology(KnownTopology.BareClient)
+def test_basic__runas_user_alias(
+    client: Client,
+    provider: GenericProvider,
+):
+    """
+    :title: Sudo rule may use a Runas_Alias for sudoRunAsUser
+    :setup:
+        1. Create users "user-1", "user-2", and "user-3"
+        2. Define ``Runas_Alias RUN_AS`` containing user-2
+        3. Create sudorule: user-1 may run whoami as ``RUN_AS``
+        4. Enable SSSD sudo responder and start SSSD
+    :steps:
+        1. Run "sudo -u user-2 whoami" as user-1
+        2. Run "sudo -u user-3 whoami" as user-1
+    :expectedresults:
+        1. Success; output contains user-2
+        2. Denied
+    :customerscenario: False
+    """
+    _setup_sudo(client, provider)
+    u1 = provider.user("user-1").add()
+    u2 = provider.user("user-2").add()
+    u3 = provider.user("user-3").add()
+    runas_alias = client.sudoalias("RUN_AS", "runas")
+    runas_alias.add([u2], order=1)
+    provider.sudorule("test").add(
+        user=u1,
+        host="ALL",
+        runasuser=runas_alias,
+        command="/usr/bin/whoami",
+        order=10,
+    )
+    client.sssd.restart()
+
+    res = client.auth.sudo.run_advanced(
+        u1.name,
+        "Secret123",
+        parameters=["-u", u2.name],
+        command="whoami",
+    )
+    msg_fail = f"User {u1.name} failed whoami as {u2.name} " f"(Runas_Alias)"
+    assert res.rc == 0, msg_fail
+    assert u2.name in res.stdout.strip(), f"Unexpected whoami: {res.stdout!r}"
+
+    denied = client.auth.sudo.run_advanced(
+        u1.name,
+        "Secret123",
+        parameters=["-u", u3.name],
+        command="whoami",
+    )
+    assert denied.rc != 0, f"User {u1.name} should not run whoami as {u3.name}"
