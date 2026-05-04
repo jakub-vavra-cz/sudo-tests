@@ -10,12 +10,11 @@ import re
 import time
 from datetime import datetime, timedelta
 
+import pytest
 from sssd_test_framework.roles.client import Client
 from sssd_test_framework.roles.generic import GenericProvider
 from sssd_test_framework.roles.ldap import LDAP
 from sssd_test_framework.topology import KnownTopology
-
-import pytest
 
 
 @pytest.mark.importance("high")
@@ -89,15 +88,15 @@ def test_sudo__case_sensitive_false(client: Client, provider: GenericProvider):
     client.sssd.domain["case_sensitive"] = "false"
     client.sssd.start()
 
-    assert client.auth.sudo.list(
-        "user-1", "Secret123", expected=["(root) /bin/ls", "(root) /bin/cat"]
-    ), "Sudo list failed!"
+    assert client.auth.sudo.list("user-1", "Secret123", expected=["(root) /bin/ls", "(root) /bin/cat"]), (
+        "Sudo list failed!"
+    )
     assert client.auth.sudo.run("user-1", "Secret123", command="/bin/ls /root"), "Sudo command failed!"
     assert client.auth.sudo.run("user-1", "Secret123", command="/bin/cat /root/test"), "Sudo command failed!"
 
-    assert client.auth.sudo.list(
-        "USER-1", "Secret123", expected=["(root) /bin/ls", "(root) /bin/cat"]
-    ), "Sudo list failed!"
+    assert client.auth.sudo.list("USER-1", "Secret123", expected=["(root) /bin/ls", "(root) /bin/cat"]), (
+        "Sudo list failed!"
+    )
     assert client.auth.sudo.run("USER-1", "Secret123", command="/bin/ls /root"), "Sudo command failed!"
     assert client.auth.sudo.run("USER-1", "Secret123", command="/bin/cat /root/test"), "Sudo command failed!"
 

@@ -6,10 +6,9 @@ SUDO Responder Tests.
 
 from __future__ import annotations
 
+import pytest
 from sssd_test_framework.roles.client import Client
 from sssd_test_framework.topology import KnownTopology
-
-import pytest
 
 
 @pytest.mark.topology(KnownTopology.BareClient)
@@ -74,15 +73,15 @@ def test__regex_wildcard_in_command(client: Client):
     client.sudorule("user-1-whoami").add(user=u, command="/usr/bin/whoami", host="ALL")
     client.sudorule("user-1-regex").add(user=u, command="/usr/bin/d*", host="ALL")
     client.host.conn.run("cat /etc/sudoers.d/*")
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/usr/bin/whoami"
-    ), f"Running whoami as {u.name} using sudo failed!"
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/usr/bin/df"
-    ), f"Running df as {u.name} using sudo failed!"
-    assert not client.auth.sudo.run(
-        u.name, "Secret123", command="/usr/bin/wc"
-    ), f"Running wc as {u.name} using sudo passed!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/usr/bin/whoami"), (
+        f"Running whoami as {u.name} using sudo failed!"
+    )
+    assert client.auth.sudo.run(u.name, "Secret123", command="/usr/bin/df"), (
+        f"Running df as {u.name} using sudo failed!"
+    )
+    assert not client.auth.sudo.run(u.name, "Secret123", command="/usr/bin/wc"), (
+        f"Running wc as {u.name} using sudo passed!"
+    )
 
 
 @pytest.mark.topology(KnownTopology.BareClient)
@@ -116,15 +115,15 @@ def test__regex_regex_in_command(client: Client):
     client.sudorule("user-1-whoami").add(user=u, command="/usr/bin/whoami", host="ALL")
     client.sudorule("user-1-regex").add(user=u, command="^/usr/bin/d.*$", host="ALL")
     client.host.conn.run("cat /etc/sudoers.d/*")
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/usr/bin/whoami"
-    ), f"Running whoami as {u.name} using sudo failed!"
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/usr/bin/df"
-    ), f"Running df as {u.name} using sudo failed!"
-    assert not client.auth.sudo.run(
-        u.name, "Secret123", command="/usr/bin/wc"
-    ), f"Running wc as {u.name} using sudo passed!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/usr/bin/whoami"), (
+        f"Running whoami as {u.name} using sudo failed!"
+    )
+    assert client.auth.sudo.run(u.name, "Secret123", command="/usr/bin/df"), (
+        f"Running df as {u.name} using sudo failed!"
+    )
+    assert not client.auth.sudo.run(u.name, "Secret123", command="/usr/bin/wc"), (
+        f"Running wc as {u.name} using sudo passed!"
+    )
 
 
 @pytest.mark.topology(KnownTopology.BareClient)
@@ -153,9 +152,9 @@ def test__regex_regex_in_command_parameter(client: Client):
     client.sssd.common.sudo()
     client.sssd.start()
     client.sudorule("user-1-regex").add(user=u, command="/bin/ls ^/usr/.*$", host="ALL")
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /usr/sbin"
-    ), f"Running ls /usr/sbin as {u.name} using sudo failed!"
-    assert not client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"Running ls /root as {u.name} using sudo passed!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /usr/sbin"), (
+        f"Running ls /usr/sbin as {u.name} using sudo failed!"
+    )
+    assert not client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"Running ls /root as {u.name} using sudo passed!"
+    )

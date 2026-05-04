@@ -6,12 +6,11 @@ SUDO Responder Tests.
 
 from __future__ import annotations
 
+import pytest
 from sssd_test_framework.roles.ad import AD
 from sssd_test_framework.roles.client import Client
 from sssd_test_framework.roles.generic import GenericProvider
 from sssd_test_framework.topology import KnownTopology
-
-import pytest
 
 
 def _setup_sudo(client: Client, provider: GenericProvider):
@@ -50,12 +49,12 @@ def test_basic__single_user(client: Client, provider: GenericProvider):
     provider.sudorule("test").add(user=u, host="ALL", command="/bin/ls")
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u2.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u2.name} was able to run sudo with command /bin/ls!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u2.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u2.name} was able to run sudo with command /bin/ls!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -82,12 +81,12 @@ def test_basic__single_user_by_uid(client: Client, provider: GenericProvider):
     provider.sudorule("test").add(user="#10001", host="ALL", command="/bin/ls")
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u1.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u1.name} (UID 10001) failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u2.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u2.name} (UID 10002) was able to run sudo but should have been denied!"
+    assert client.auth.sudo.run(u1.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u1.name} (UID 10001) failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u2.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u2.name} (UID 10002) was able to run sudo but should have been denied!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -118,15 +117,15 @@ def test_basic__multiple_users(client: Client, provider: GenericProvider):
     u3 = provider.user("user-deny").add()
     provider.sudorule("userlist").add(user=[u1, u2], host="ALL", command="/bin/ls")
     client.sssd.restart()
-    assert client.auth.sudo.run(
-        u1.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u1.name} failed to run sudo with command /bin/ls!"
-    assert client.auth.sudo.run(
-        u2.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u2.name} failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u3.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u3.name} was able to run sudo with command /bin/ls!"
+    assert client.auth.sudo.run(u1.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u1.name} failed to run sudo with command /bin/ls!"
+    )
+    assert client.auth.sudo.run(u2.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u2.name} failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u3.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u3.name} was able to run sudo with command /bin/ls!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -163,12 +162,12 @@ def test_basic__single_group(client: Client, provider: GenericProvider):
     if isinstance(provider, AD):
         client.tools.id(u.name)
 
-    assert client.auth.sudo.list(
-        u.name, "Secret123", expected=["(root) /bin/ls"]
-    ), f"User {u.name} has not /bin/ls in allowed commands!"
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls"
-    ), f"User {u.name} failed to run sudo with command /bin/ls!"
+    assert client.auth.sudo.list(u.name, "Secret123", expected=["(root) /bin/ls"]), (
+        f"User {u.name} has not /bin/ls in allowed commands!"
+    )
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls"), (
+        f"User {u.name} failed to run sudo with command /bin/ls!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -200,12 +199,12 @@ def test_basic__single_group_by_gid(client: Client, provider: GenericProvider):
         client.tools.id(u.name)
         client.tools.id(u_deny.name)
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} (member of group GID 20001) failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u_deny.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u_deny.name} was able to run sudo but should have been denied!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} (member of group GID 20001) failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u_deny.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u_deny.name} was able to run sudo but should have been denied!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -238,12 +237,12 @@ def test_basic__nonposix_group(client: Client, provider: GenericProvider):
     client.tools.id(u.name)
     client.tools.id(u_deny.name)
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} (member of non-POSIX group) failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u_deny.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u_deny.name} was able to run sudo but should have been denied!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} (member of non-POSIX group) failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u_deny.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u_deny.name} was able to run sudo but should have been denied!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -283,15 +282,15 @@ def test_basic__multiple_groups(client: Client, provider: GenericProvider):
         client.tools.id(u2.name)
         client.tools.id(u3.name)
 
-    assert client.auth.sudo.run(
-        u1.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u1.name} failed to run sudo with command /bin/ls!"
-    assert client.auth.sudo.run(
-        u2.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u2.name} failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u3.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u3.name} was able to run sudo with command /bin/ls but should not have been able to!"
+    assert client.auth.sudo.run(u1.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u1.name} failed to run sudo with command /bin/ls!"
+    )
+    assert client.auth.sudo.run(u2.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u2.name} failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u3.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u3.name} was able to run sudo with command /bin/ls but should not have been able to!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -328,12 +327,12 @@ def test_basic__user_and_group(client: Client, provider: GenericProvider):
         client.tools.id(u1.name)
         client.tools.id(u2.name)
 
-    assert client.auth.sudo.run(
-        u1.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u1.name} failed to run sudo with command /bin/ls!"
-    assert client.auth.sudo.run(
-        u2.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u2.name} failed to run sudo with command /bin/ls!"
+    assert client.auth.sudo.run(u1.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u1.name} failed to run sudo with command /bin/ls!"
+    )
+    assert client.auth.sudo.run(u2.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u2.name} failed to run sudo with command /bin/ls!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -371,15 +370,15 @@ def test_basic__single_netgroup(client: Client, provider: GenericProvider):
         client.tools.id(u.name)
         client.tools.id(u_deny.name)
 
-    assert client.auth.sudo.list(
-        u.name, "Secret123", expected=["(root) /bin/ls"]
-    ), f"User {u.name} has not /bin/ls in allowed commands!"
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u_deny.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u_deny.name} was able to run sudo but should have been denied!"
+    assert client.auth.sudo.list(u.name, "Secret123", expected=["(root) /bin/ls"]), (
+        f"User {u.name} has not /bin/ls in allowed commands!"
+    )
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u_deny.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u_deny.name} was able to run sudo but should have been denied!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -413,12 +412,12 @@ def test_basic__multiple_commands(client: Client, provider: GenericProvider):
     if isinstance(provider, AD):
         client.tools.id(u.name)
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} failed to run sudo with command /bin/ls!"
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/df"
-    ), f"User {u.name} failed to run sudo with command /bin/df!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} failed to run sudo with command /bin/ls!"
+    )
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/df"), (
+        f"User {u.name} failed to run sudo with command /bin/df!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -451,12 +450,12 @@ def test_basic__excluded_command(client: Client, provider: GenericProvider):
     if isinstance(provider, AD):
         client.tools.id(u.name)
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/df"
-    ), f"User {u.name} was able to run sudo with command /bin/df but should not have been able to!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u.name, "Secret123", command="/bin/df"), (
+        f"User {u.name} was able to run sudo with command /bin/df but should not have been able to!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -482,12 +481,12 @@ def test_basic__excluded_user(client: Client, provider: GenericProvider):
     provider.sudorule("test").add(user=["ALL", f"!{u_deny.name}"], host="ALL", command="/bin/ls")
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u_allow.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u_allow.name} failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u_deny.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u_deny.name} was able to run sudo but should have been denied!"
+    assert client.auth.sudo.run(u_allow.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u_allow.name} failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u_deny.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u_deny.name} was able to run sudo but should have been denied!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -515,12 +514,12 @@ def test_basic__excluded_group(client: Client, provider: GenericProvider):
     provider.sudorule("test").add(user=["ALL", f"!%{g_deny.name}"], host="ALL", command="/bin/ls")
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u_allow.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u_allow.name} failed to run sudo with command /bin/ls!"
-    assert not client.auth.sudo.run(
-        u_deny.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u_deny.name} (in excluded group) was able to run sudo but should have been denied!"
+    assert client.auth.sudo.run(u_allow.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u_allow.name} failed to run sudo with command /bin/ls!"
+    )
+    assert not client.auth.sudo.run(u_deny.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u_deny.name} (in excluded group) was able to run sudo but should have been denied!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -561,9 +560,9 @@ def test_basic__single_runasuser(client: Client, provider: GenericProvider):
     assert res.rc == 0, f"User {u1.name} failed to run sudo with command whoami as {u2.name}!"
     assert u2.name in res.stdout.strip(), f"whoami output mismatch: expected {u2.name!r}, got {res.stdout!r}"
 
-    assert (
-        client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-u", u3.name], command="whoami").rc != 0
-    ), f"User {u1.name} was able to run sudo with command whoami as {u3.name} but should not have been able to!"
+    assert client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-u", u3.name], command="whoami").rc != 0, (
+        f"User {u1.name} was able to run sudo with command whoami as {u3.name} but should not have been able to!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -600,9 +599,9 @@ def test_basic__single_runasuser_by_uid(client: Client, provider: GenericProvide
     assert res.rc == 0, f"User {u1.name} failed to run sudo with command whoami as {u2.name} (UID 10002)!"
     assert u2.name in res.stdout.strip(), f"whoami output mismatch: expected {u2.name!r}, got {res.stdout!r}"
 
-    assert (
-        client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-u", u3.name], command="whoami").rc != 0
-    ), f"User {u1.name} was able to run sudo with command whoami as {u3.name} but should not have been able to!"
+    assert client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-u", u3.name], command="whoami").rc != 0, (
+        f"User {u1.name} was able to run sudo with command whoami as {u3.name} but should not have been able to!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -677,9 +676,9 @@ def test_basic__single_runasgroup(client: Client, provider: GenericProvider):
     assert res.rc == 0, f"User {u1.name} failed to run sudo with command id -g as {g1.name}!"
     assert "20001" in res.stdout.strip(), f"id -g mismatch: expected 20001, got {res.stdout!r}"
 
-    assert (
-        client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-g", g2.name], command="id -g").rc != 0
-    ), f"User {u1.name} was able to run sudo with command id -g as {g2.name} but should not have been able to!"
+    assert client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-g", g2.name], command="id -g").rc != 0, (
+        f"User {u1.name} was able to run sudo with command id -g as {g2.name} but should not have been able to!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -717,9 +716,9 @@ def test_basic__single_runasgroup_by_gid(client: Client, provider: GenericProvid
     assert res.rc == 0, f"User {u1.name} failed to run sudo with command id -g as {g1.name} (GID 20001)!"
     assert "20001" in res.stdout.strip(), f"id -g mismatch: expected 20001, got {res.stdout!r}"
 
-    assert (
-        client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-g", g2.name], command="id -g").rc != 0
-    ), f"User {u1.name} was able to run sudo with command id -g as {g2.name} but should not have been able to!"
+    assert client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-g", g2.name], command="id -g").rc != 0, (
+        f"User {u1.name} was able to run sudo with command id -g as {g2.name} but should not have been able to!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -758,9 +757,9 @@ def test_basic__multiple_runasgroup(client: Client, provider: GenericProvider):
     assert res.rc == 0, f"User {u1.name} failed to run sudo with command id -g as {g2.name}!"
     assert "20002" in res.stdout.strip(), f"id -g mismatch: expected 20002, got {res.stdout!r}"
 
-    assert (
-        client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-g", g3.name], command="id -g").rc != 0
-    ), f"User {u1.name} was able to run sudo with command id -g as {g3.name} but should not have been able to!"
+    assert client.auth.sudo.run_advanced(u1.name, "Secret123", parameters=["-g", g3.name], command="id -g").rc != 0, (
+        f"User {u1.name} was able to run sudo with command id -g as {g3.name} but should not have been able to!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -850,9 +849,9 @@ def test_basic__hostname_hostname(client: Client, provider: GenericProvider, nam
         f"{name}: User {u.name} was unable to run 'sudo /bin/ls /root' "
         f"that should have been allowed on {allowed_host}."
     )
-    assert not client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/df"
-    ), f"{name}: User {u.name} was able to run 'sudo /bin/df' that should have been blocked!"
+    assert not client.auth.sudo.run(u.name, "Secret123", command="/bin/df"), (
+        f"{name}: User {u.name} was able to run 'sudo /bin/df' that should have been blocked!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -910,9 +909,9 @@ def test_basic__hostname_ip(client: Client, provider: GenericProvider, name: str
         f"{name}: User {u.name} was unable to run 'sudo /bin/ls /root' "
         f"that should have been allowed on {allowed_host}."
     )
-    assert not client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/df"
-    ), f"{name}: User {u.name} was able to run 'sudo /bin/df' that should have been blocked!"
+    assert not client.auth.sudo.run(u.name, "Secret123", command="/bin/df"), (
+        f"{name}: User {u.name} was able to run 'sudo /bin/df' that should have been blocked!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -951,12 +950,12 @@ def test_basic__hostname_excluded(client: Client, provider: GenericProvider, nam
     provider.sudorule("test2").add(user=u, host=f"ALL,!{other_host}", command="/bin/df")
     client.sssd.restart()
 
-    assert not client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"{name}: User {u.name} was able to run 'sudo /bin/ls /root' that should have been blocked!"
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/df"
-    ), f"{name}: User {u.name} was unable to run 'sudo /bin/df' that should have been allowed!"
+    assert not client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"{name}: User {u.name} was able to run 'sudo /bin/ls /root' that should have been blocked!"
+    )
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/df"), (
+        f"{name}: User {u.name} was unable to run 'sudo /bin/df' that should have been allowed!"
+    )
 
 
 @pytest.mark.importance("medium")
@@ -982,9 +981,9 @@ def test_basic__hostname_localhost(client: Client, provider: GenericProvider, na
     provider.sudorule("test1").add(user=u, host=name, command="/bin/ls")
     client.sssd.restart()
 
-    assert not client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"{name}: User {u.name} was able to run 'sudo /bin/ls /root' that should have been blocked!"
+    assert not client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"{name}: User {u.name} was able to run 'sudo /bin/ls /root' that should have been blocked!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -1015,12 +1014,12 @@ def test_basic__tags_nopasswd(client: Client, provider: GenericProvider):
     provider.sudorule("test2").add(user=u, host="ALL", command="/bin/df")
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u.name, command="/bin/ls /root"
-    ), f"User {u.name} was unable to run 'sudo /bin/ls /root' that should have been allowed!"
-    assert not client.auth.sudo.run(
-        u.name, command="/bin/df"
-    ), f"User {u.name} was able to run 'sudo /bin/df' that should have been blocked!"
+    assert client.auth.sudo.run(u.name, command="/bin/ls /root"), (
+        f"User {u.name} was unable to run 'sudo /bin/ls /root' that should have been allowed!"
+    )
+    assert not client.auth.sudo.run(u.name, command="/bin/df"), (
+        f"User {u.name} was able to run 'sudo /bin/df' that should have been blocked!"
+    )
 
 
 @pytest.mark.importance("critical")
@@ -1048,17 +1047,17 @@ def test_basic__user_alias_single_user(
     u = provider.user("user-1").add()
     u2 = provider.user("user-2").add()
     user_alias = client.sudoalias("SUDO_USERS", "user")
-    user_alias.add([u], order=1)
+    user_alias.add([u.name], order=1)
     sudo_rule = provider.sudorule("test")
-    sudo_rule.add(user=user_alias, host="ALL", command="/bin/ls", order=10)
+    sudo_rule.add(user="SUDO_USERS", host="ALL", command="/bin/ls", order=10)
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} failed sudo via User_Alias!"
-    assert not client.auth.sudo.run(
-        u2.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u2.name} should be denied (not in SUDO_USERS)!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} failed sudo via User_Alias!"
+    )
+    assert not client.auth.sudo.run(u2.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u2.name} should be denied (not in SUDO_USERS)!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -1087,17 +1086,17 @@ def test_basic__user_alias_multiple_members(
     u2 = provider.user("user-2").add()
     u3 = provider.user("user-deny").add()
     user_alias = client.sudoalias("SUDO_USERS", "user")
-    user_alias.add([u1, u2], order=1)
+    user_alias.add([u1.name, u2.name], order=1)
     sudo_rule = provider.sudorule("test")
-    sudo_rule.add(user=user_alias, host="ALL", command="/bin/ls", order=10)
+    sudo_rule.add(user="SUDO_USERS", host="ALL", command="/bin/ls", order=10)
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u1.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u1.name} failed sudo (User_Alias)!"
-    assert client.auth.sudo.run(
-        u2.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u2.name} failed sudo (User_Alias)!"
+    assert client.auth.sudo.run(u1.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u1.name} failed sudo (User_Alias)!"
+    )
+    assert client.auth.sudo.run(u2.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u2.name} failed sudo (User_Alias)!"
+    )
     assert not client.auth.sudo.run(
         u3.name,
         "Secret123",
@@ -1128,14 +1127,14 @@ def test_basic__user_alias_with_group_member(
     u = provider.user("user-1").add()
     g = provider.group("group-1").add().add_member(u)
     user_alias = client.sudoalias("SUDO_SUBJECTS", "user")
-    user_alias.add([g], order=1)
+    user_alias.add([f"%{g.name}"], order=1)
     sudo_rule = provider.sudorule("test")
-    sudo_rule.add(user=user_alias, host="ALL", command="/bin/ls", order=10)
+    sudo_rule.add(user="SUDO_SUBJECTS", host="ALL", command="/bin/ls", order=10)
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} failed sudo (User_Alias + group)!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} failed sudo (User_Alias + group)!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -1162,12 +1161,12 @@ def test_basic__command_alias(
     cmd_alias = client.sudoalias("LSHELP", "command")
     cmd_alias.add("/bin/ls", order=1)
     sudo_rule = provider.sudorule("test")
-    sudo_rule.add(user=u, host="ALL", command=cmd_alias, order=10)
+    sudo_rule.add(user=u, host="ALL", command="LSHELP", order=10)
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} failed sudo via Cmnd_Alias!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} failed sudo via Cmnd_Alias!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -1195,12 +1194,12 @@ def test_basic__host_alias(
     host_alias = client.sudoalias("TRUSTED", "host")
     host_alias.add([short], order=1)
     sudo_rule = provider.sudorule("test")
-    sudo_rule.add(user=u, host=host_alias, command="/bin/ls", order=10)
+    sudo_rule.add(user=u, host="TRUSTED", command="/bin/ls", order=10)
     client.sssd.restart()
 
-    assert client.auth.sudo.run(
-        u.name, "Secret123", command="/bin/ls /root"
-    ), f"User {u.name} failed sudo via Host_Alias!"
+    assert client.auth.sudo.run(u.name, "Secret123", command="/bin/ls /root"), (
+        f"User {u.name} failed sudo via Host_Alias!"
+    )
 
 
 @pytest.mark.importance("high")
@@ -1229,11 +1228,11 @@ def test_basic__runas_user_alias(
     u2 = provider.user("user-2").add()
     u3 = provider.user("user-3").add()
     runas_alias = client.sudoalias("RUN_AS", "runas")
-    runas_alias.add([u2], order=1)
+    runas_alias.add([u2.name], order=1)
     provider.sudorule("test").add(
         user=u1,
         host="ALL",
-        runasuser=runas_alias,
+        runasuser="RUN_AS",
         command="/usr/bin/whoami",
         order=10,
     )

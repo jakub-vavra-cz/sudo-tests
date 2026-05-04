@@ -1,3 +1,24 @@
+[tool.ruff]
+line-length = 119
+target-version = "py312"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+]
+extend-ignore = []
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
 [tool.mypy]
 exclude = "docs"
 
@@ -16,6 +37,3 @@ add_imports = "from __future__ import annotations"
 
 [tool.black]
 line-length = 119
-
-[tool.flake8]
-max-line-length = 119

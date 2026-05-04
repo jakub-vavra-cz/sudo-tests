@@ -6,11 +6,11 @@ SUDO Security CVE Tests.
 
 from __future__ import annotations
 
-from sssd_test_framework.roles.client import Client
-from sssd_test_framework.topology import KnownTopology
+import time
 
 import pytest
-import time
+from sssd_test_framework.roles.client import Client
+from sssd_test_framework.topology import KnownTopology
 
 # Records effective uid/gid of the mailer process (see CVE-2026-35535 repro).
 _FAKE_MAILER = """#!/bin/bash
@@ -56,9 +56,7 @@ def test_cve__mailer_escalation(client: Client):
     client.fs.chmod(path="/tmp/fakemailer", mode="ugo+rx")
 
     sudoers = (
-        "Defaults mailerpath=/tmp/fakemailer\n"
-        "Defaults mail_always\n"
-        f"{username} ALL=(ALL) PASSWD: /usr/bin/whoami\n"
+        f"Defaults mailerpath=/tmp/fakemailer\nDefaults mail_always\n{username} ALL=(ALL) PASSWD: /usr/bin/whoami\n"
     )
     client.fs.write(mailer_drop_in_path, sudoers)
     client.fs.chmod(path=mailer_drop_in_path, mode="ugo+r")
