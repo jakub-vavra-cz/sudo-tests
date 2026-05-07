@@ -159,3 +159,42 @@ def test__regex_regex_in_command_parameter(client: Client):
     assert not client.auth.sudo.run(
         u.name, "Secret123", command="/bin/ls /root"
     ), f"Running ls /root as {u.name} using sudo passed!"
+
+
+@pytest.mark.topology(KnownTopology.BareClient)
+@pytest.mark.ticket(jira=["RHEL-95850"])
+@pytest.mark.parametrize("nopasswd", [True, False], ids=["nopasswd_true", "nopasswd_false"])
+def test__ksh_piped_sudo_output_not_mangled(client: Client, nopasswd: bool):
+    """
+    :title: ksh piped sudo command does not mangle output
+    :setup:
+        1. Install ksh
+        2. Create user "user-1"
+        3. Create a sudo rule for user-1 with NOPASSWD enabled/disabled
+        4. Enable SSSD sudo responder and start SSSD
+    :steps:
+        1. Run "ksh -c 'cat /etc/services | head -3'" as user-1
+        2. Run "ksh -c 'sudo cat /etc/services | head -3'" as user-1 with and without password prompt
+    :expectedresults:
+        1. Command is executed successfully
+        2. Output is not mangled and matches the non-sudo command output
+    :customerscenario: True
+    """
+    client.host.conn.run("dnf install -y ksh")
+    u = client.user("user-1").add(uid=10001, password="Secret123")
+    client.sssd.common.local()
+    client.sssd.common.sudo()
+    client.sssd.start()
+    client.sudorule("user-1-all").add(user=u, command="ALL", host="ALL", nopasswd=nopasswd)
+
+    plain = client.host.conn.run(f"su - {u.name} -c \"ksh -c 'cat /etc/services | head -3'\"")
+    sudo_command = (
+        "sudo cat /etc/services | head -3"
+        if nopasswd
+        else "printf 'Secret123\\n' | sudo -S -p '' cat /etc/services | head -3"
+    )
+    sudoed = client.host.conn.run(f"su - {u.name} -c \"ksh -c '{sudo_command}'\"")
+
+    assert plain.rc == 0, f"Running piped command in ksh as {u.name} failed!"
+    assert sudoed.rc == 0, f"Running piped sudo command in ksh as {u.name} failed!"
+    assert sudoed.stdout == plain.stdout, "Output from piped sudo command in ksh is mangled!"
