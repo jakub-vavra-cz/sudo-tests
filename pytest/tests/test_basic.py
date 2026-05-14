@@ -828,17 +828,19 @@ def test_basic__hostname_hostname(client: Client, provider: GenericProvider, nam
     u = provider.user("user-1").add()
     other_host = "other"
 
-    if name == "shortname":
-        allowed_host = client.host.hostname.split(".")[0]
-    elif name == "fqdn":
-        allowed_host = client.host.hostname
-        other_host = "other.test"
-    elif name == "wildcard_shortname":
-        allowed_host = f"*{client.host.hostname.split(".")[0][2:]}"
-    elif name == "wildcard_fqdn":
-        allowed_host = f"*{client.host.hostname[2:]}"
-    else:
-        raise ValueError(f"Invalid hostname type: {name}")
+    match name:
+        case "shortname":
+            allowed_host = client.hostnameutils.shortname
+        case "fqdn":
+            fqdn = client.hostnameutils.fqdn
+            allowed_host = fqdn
+            other_host = f"other.{fqdn.split('.', 1)[1]}" if "." in fqdn else "other"
+        case "wildcard_shortname":
+            allowed_host = f"*{client.hostnameutils.shortname[2:]}"
+        case "wildcard_fqdn":
+            allowed_host = f"*{client.hostnameutils.fqdn[2:]}"
+        case _:
+            raise ValueError(f"Invalid hostname type: {name}")
 
     provider.sudorule("test1").add(user=u, host=allowed_host, command="/bin/ls")
     provider.sudorule("test2").add(user=u, host=other_host, command="/bin/df")
