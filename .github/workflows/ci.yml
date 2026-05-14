@@ -37,7 +37,6 @@ jobs:
     - name: Checkout sudo-tests repository
       uses: actions/checkout@v6
       with:
-        repository: RedHat-SP-Security/sudo-tests
         path: sudo-tests
 
     - name: Setup containers
